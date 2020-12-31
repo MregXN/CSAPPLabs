@@ -165,8 +165,7 @@ int tmin(void)
  */
 int isTmax(int x)
 {
-
-  return !(~(x ^ (x + 1))) & !!(~x);
+  return !(~(x ^ (x + 1))) & !!(x + 1);
 }
 /* 
  * allOddBits - return 1 if all odd-numbered bits in word set to 1
@@ -178,9 +177,9 @@ int isTmax(int x)
  */
 int allOddBits(int x)
 {
-  int k = 0xaa + (0xaa << 8) + (0xaa << 16) + (0xaa << 24);
-  int y = k & x;
-  return !(y ^ k);
+  int mask = 0xaa + (0xaa << 8) + (0xaa << 16) + (0xaa << 24);
+  int y = mask & x;
+  return !(y ^ mask);
 }
 /* 
  * negate - return -x 
@@ -205,15 +204,7 @@ int negate(int x)
  */
 int isAsciiDigit(int x)
 {
-  int mask = ~0x0f;
-  int mask2 = 0x30;
-  int MidHaveTwoOneIsZero = ((x & mask) ^ mask2);
-  int mask3 = 0x0f;
-  int Low = x & mask3;
-  int SmallThan9IsZero = (Low >> 3);
-  int nine = Low ^ 0x9;
-  int eight = Low ^ 0x8;
-  return (!MidHaveTwoOneIsZero) & (!SmallThan9IsZero | !nine | !eight);
+  return  !((x + ~0x30 + 1) >> 31) & !!((x + ~0x3a + 1) >> 31);
 }
 /* 
  * conditional - same as x ? y : z 
