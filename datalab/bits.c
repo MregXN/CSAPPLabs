@@ -227,10 +227,9 @@ int conditional(int x, int y, int z)
 int isLessOrEqual(int x, int y)
 {
   int sy = (y >> 31);
-  int signSame = (sy ^ (x >> 31)); //same is 0, diff is all 1
-  int xor = signSame & (!sy);      //check y is pos, !sy = 1
-  int same = ~((y + (~x + 1)) >> 31) & (!signSame);
-  return xor | same;
+  int signSame = ~(sy ^ (x >> 31)); //same is all 1, diff is all 0
+
+  return  (signSame & !!((x + ~(y+1) + 1) >> 31)) || (~signSame & !sy);
 }
 //4
 /* 
@@ -243,8 +242,13 @@ int isLessOrEqual(int x, int y)
  */
 int logicalNeg(int x)
 {
-  int y = (x ^ (~x + 1)) >> 31;
-  return (~y & 1) & (~(x >> 31) & 1);
+	x |= x>>16; // 若高16位有1，则传递给低16位的对应位
+	x |= x>>8;	// 若低16位的高8位有1，则传递给低8位的对应位
+	x |= x>>4;	// 若低8位的高4位有1，则传递给低4位的对应位
+	x |= x>>2;	// 若低4位的高2位有1，则传递给低2位的对应位
+	x |= x>>1;	// 若低2位的高1位有1，则传递给最低1位
+	x ^= 1; 	// 只要x包含1，则必定会导致此时的x为1，x^=1即取反
+	return x&1; 
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -260,39 +264,29 @@ int logicalNeg(int x)
  */
 int howManyBits(int x)
 {
-  int isPos = (x >> 31); //0000 is pos
-  int res = 0;           // for cal ans
-  int cur, tmp, b16, isZero;
-  x = (isPos & (~x)) | (~isPos & x); //if x is pos use post part, is neg user pre part
-  isZero = !x;                       //incl 0 & -1, i is zero
-  cur = x >> 16;
-  tmp = !!cur;
-  res = res + (tmp << 4);
-  b16 = (tmp << 31) >> 31;
-  x = (~b16 & x) | (b16 & cur);
+  int b16,b8,b4,b2,b1,b0;
+  int mask = x >> 31;
+  x = (mask & ~x) | (~mask & x); //如果为正数，保持不变；如果为负数，按位取反
 
-  cur = x >> 8;
-  tmp = !!cur;
-  res = res + (tmp << 3);
-  b16 = (tmp << 31) >> 31;
-  x = (~b16 & x) | (b16 & cur);
+  //step1:判断高16为是否有1
+  b16 = !!(x >> 16) << 4; //如果高16为有1,则b16 = 16，否则为0
+  x >>= b16; //如果高16位有1,x右移16位舍弃低16位,在新的低16位继续查找；否则保持不变
+  //step2:判断高8位是否有1
+  b8 = !!(x >> 8) << 3;
+  x >>= b8;
+  //step3:高4位
+  b4 = !!(x >> 4) << 2;
+  x >>= b4;
+  //step4:高2位
+  b2 = !!(x >> 2) << 1;
+  x >>= b2;
+  //step5:高1位
+  b1 = !!(x >> 1);
+  x >>= b1;
+  //step6:低1位
+  b0 = x;
 
-  cur = x >> 4;
-  tmp = !!cur;
-  res = res + (tmp << 2);
-  b16 = (tmp << 31) >> 31;
-  x = (~b16 & x) | (b16 & cur);
-
-  cur = x >> 2;
-  tmp = !!cur;
-  res = res + (tmp << 1);
-  b16 = (tmp << 31) >> 31;
-  x = (~b16 & x) | (b16 & cur);
-  cur = x >> 1;
-
-  res = res + cur;
-
-  return res + 1 + !isZero;
+  return b16 + b8 + b4 + b2 + b1 + b0 + 1;
 }
 //float
 /* 
@@ -372,9 +366,8 @@ int floatFloat2Int(unsigned uf)
  */
 unsigned floatPower2(int x)
 {
-  int frac = x + 149;
   if (x > 127)
-    return 0x7f800000u;
+    return (0xFF << 23);
   if (x < -149)
     return 0u;
   if (x >= -126)
@@ -382,5 +375,7 @@ unsigned floatPower2(int x)
     unsigned exp = x + 127;
     return exp << 23;
   }
-  return 1u << frac;
+    
+  int frac = x + 148;
+  return 1 << frac;
 }
